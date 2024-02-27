@@ -36,19 +36,21 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
+#include "hardware/gpio.h"
+
 //--------------------------------------------------------------------+
 // MACRO CONSTANT TYPEDEF PROTYPES
 //--------------------------------------------------------------------+
 
 /* Blink pattern
- * - 250 ms  : device not mounted
+ * - 250 ms	 : device not mounted
  * - 1000 ms : device mounted
  * - 2500 ms : device is suspended
  */
 enum {
-    BLINK_NOT_MOUNTED = 250,
-    BLINK_MOUNTED = 1000,
-    BLINK_SUSPENDED = 2500,
+	BLINK_NOT_MOUNTED = 250,
+	BLINK_MOUNTED = 1000,
+	BLINK_SUSPENDED = 2500,
 };
 
 static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
@@ -56,18 +58,55 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 void led_blinking_task(void);
 void hid_task(void);
 
+const int keys[9] = {
+	5,2,8,7,6,9,10, // 1-7
+	4,3             // START,SELECT
+};
+
+const int map1[9] = {
+	0,0,0,0,0,0,0,
+	1,1
+};
+
+const int map2[9] = {
+	0,1,2,3,4,5,6,
+	0,1
+};
+
+const int scr[2] = {
+	11,12
+};
+
+int scr_mode = 0;
+
 /*------------- MAIN -------------*/
 int main(void) {
-    board_init();
-    tusb_init();
+	board_init();
+	tusb_init();
+	
+	for(int i = 0; i < 9; i++) {
+		gpio_init(keys[i]);
+		gpio_set_dir(keys[i], GPIO_IN);
+		gpio_pull_up(keys[i]);
+	}
 
-    while (1) {
-        tud_task(); // tinyusb device task
-        led_blinking_task();
-        hid_task();
-    }
+	gpio_init(scr[0]);
+	gpio_set_dir(scr[0], GPIO_IN);
+	gpio_pull_up(scr[0]);
+	
+	gpio_init(scr[1]);
+	gpio_set_dir(scr[1], GPIO_IN);
+	gpio_pull_up(scr[1]);
+	
+	scr_mode = !gpio_get(keys[8]) ? 1 : 0;
 
-    return 0;
+	while (1) {
+		tud_task(); // tinyusb device task
+		led_blinking_task();
+		hid_task();
+	}
+
+	return 0;
 }
 
 //--------------------------------------------------------------------+
@@ -76,57 +115,122 @@ int main(void) {
 
 // Invoked when device is mounted
 void tud_mount_cb(void) {
-    blink_interval_ms = BLINK_MOUNTED;
+	blink_interval_ms = BLINK_MOUNTED;
 }
 
 // Invoked when device is unmounted
 void tud_umount_cb(void) {
-    blink_interval_ms = BLINK_NOT_MOUNTED;
+	blink_interval_ms = BLINK_NOT_MOUNTED;
 }
 
 // Invoked when usb bus is suspended
-// remote_wakeup_en : if host allow us  to perform remote wakeup
+// remote_wakeup_en : if host allow us	to perform remote wakeup
 // Within 7ms, device must draw an average of current less than 2.5 mA from bus
 void tud_suspend_cb(bool remote_wakeup_en) {
-    (void) remote_wakeup_en;
-    blink_interval_ms = BLINK_SUSPENDED;
+	(void) remote_wakeup_en;
+	blink_interval_ms = BLINK_SUSPENDED;
 }
 
 // Invoked when usb bus is resumed
 void tud_resume_cb(void) {
-    blink_interval_ms = BLINK_MOUNTED;
+	blink_interval_ms = BLINK_MOUNTED;
 }
 
 //--------------------------------------------------------------------+
 // USB HID
 //--------------------------------------------------------------------+
 
+int digi_sc = 1;
+int prev_sc = 0;
+int digi_ctimer = 0;
+int digi_vtimer = 0;
+
+uint8_t ana_sc = 0;
+uint8_t prev_a = 255;
+
+void scr_check() {
+	if(ana_sc != prev_sc) {
+		if(ana_sc > prev_sc) {
+			if(ana_sc - prev_sc > 127) {
+				digi_sc = 0;
+			} else {
+				digi_sc = 2;
+			}
+		} else {
+			if(prev_sc - ana_sc  > 127) {
+				digi_sc = 2;
+			} else {
+				digi_sc = 0;
+			}
+		}
+		digi_vtimer = 0;
+	} else {
+		if(digi_vtimer >= 20) {
+			digi_sc = 1;
+		} else {
+			digi_vtimer++;
+		}
+	}
+	
+	prev_sc = ana_sc;
+}
+
 void hid_task(void) {
-    // Poll every 10ms
-    const uint32_t interval_ms = 100;
-    static uint32_t start_ms = 0;
-    static uint8_t button = 0;
-    static HID_JoystickReport_Data_t report = {1, 0, 0};
+	const uint32_t interval_ms = 1;
+	static uint32_t start_ms = 0;
+	static HID_JoystickReport_Data_t report;
 
-    if ((board_millis() - start_ms) < interval_ms) return; // not enough time
-    start_ms = board_millis() + interval_ms;
+	if ((board_millis() - start_ms) < interval_ms) return; // not enough time
+	start_ms = board_millis() + interval_ms;
+	
+	// Remote wakeup
+	if (tud_suspended()) {
+		// Wake up host if we are in suspend mode
+		// and REMOTE_WAKEUP feature is enabled by host
+		tud_remote_wakeup();
+	}
 
-    // Remote wakeup
-    if (tud_suspended()) {
-        // Wake up host if we are in suspend mode
-        // and REMOTE_WAKEUP feature is enabled by host
-        tud_remote_wakeup();
-    }
+	report.xAxis = 0;
+	report.yAxis = 0;
+	report.buttons[0] = 0;
+	report.buttons[1] = 0;
+	report.buttons[2] = 0;
+	
+	for(int i = 0; i < 9; i++) {
+		report.buttons[map1[i]] |= gpio_get(keys[i]) ? 0 : (1 << map2[i]);
+	}
 
-    /*------------- Joystick -------------*/
-    if (tud_hid_ready()) {
-        report.xAxis = 128;           // 0=left, 128=center, 255=right
-        report.yAxis = 128;           // 0=up, 128=center, 255=down
-        report.buttons[0] = 1 << button; // set bit to press a button
-        button = (button + 1) & 0x07; // limit button to the range 0..7
+	uint8_t now_a = !gpio_get(12) ? 1 : 0;
+	uint8_t now_b = !gpio_get(11) ? 1 : 0;
+	
+	if(prev_a != 255) {
+		if(now_a != prev_a) {
+			if(now_a == now_b) {
+				ana_sc++;
+			}
+			if(now_a != now_b) {
+				ana_sc--;
+			}
+		}
+	}
+	
+	prev_a = !gpio_get(12) ? 1 : 0;
 
-        tud_hid_report(0x00, &report, sizeof(report));
-    }
+	//if(board_millis() - digi_ctimer > 1) {
+		digi_ctimer = board_millis();
+		scr_check();
+	//}
+
+	if(!scr_mode) {
+		report.xAxis = ((int)ana_sc - 128);
+	} else {
+		report.yAxis = digi_sc == 1 ? 0 : digi_sc == 2 ? 127 : -128;
+	}
+
+	/*------------- Joystick -------------*/
+	if (tud_hid_ready()) {
+		tud_hid_report(0x00, &report, sizeof(report));
+	}
 }
 
 
@@ -134,38 +238,38 @@ void hid_task(void) {
 // Application must fill buffer report's content and return its length.
 // Return zero will cause the stack to STALL request
 uint16_t tud_hid_get_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t *buffer, uint16_t reqlen) {
-    // TODO not Implemented
+	// TODO not Implemented
 	(void) instance;
-    (void) report_id;
-    (void) report_type;
-    (void) buffer;
-    (void) reqlen;
+	(void) report_id;
+	(void) report_type;
+	(void) buffer;
+	(void) reqlen;
 
-    return 0;
+	return 0;
 }
 
 // Invoked when received SET_REPORT control request or
 // received data on OUT endpoint ( Report ID = 0, Type = 0 )
 void tud_hid_set_report_cb(uint8_t instance, uint8_t report_id, hid_report_type_t report_type, uint8_t const *buffer, uint16_t bufsize) {
-    // TODO set LED based on CAPLOCK, NUMLOCK etc...
+	// TODO set LED based on CAPLOCK, NUMLOCK etc...
 	(void) instance;
-    (void) report_id;
-    (void) report_type;
-    (void) buffer;
-    (void) bufsize;
+	(void) report_id;
+	(void) report_type;
+	(void) buffer;
+	(void) bufsize;
 }
 
 //--------------------------------------------------------------------+
 // BLINKING TASK
 //--------------------------------------------------------------------+
 void led_blinking_task(void) {
-    static uint32_t start_ms = 0;
-    static bool led_state = false;
+	static uint32_t start_ms = 0;
+	static bool led_state = false;
 
-    // Blink every interval ms
-    if ((board_millis() - start_ms) < blink_interval_ms) return; // not enough time
-    start_ms = board_millis() + blink_interval_ms;
+	// Blink every interval ms
+	if ((board_millis() - start_ms) < blink_interval_ms) return; // not enough time
+	start_ms = board_millis() + blink_interval_ms;
 
-    board_led_write(led_state);
-    led_state = 1 - led_state; // toggle
+	board_led_write(led_state);
+	led_state = 1 - led_state; // toggle
 }
