@@ -32,8 +32,8 @@
 #define ATTRIBUTE_PACKED  __attribute__((packed, aligned(1)))
 
 typedef struct ATTRIBUTE_PACKED {
-    uint8_t xAxis;
-    uint8_t yAxis;
+	int8_t xAxis;
+	int8_t yAxis;
 	uint8_t buttons[3];
 } HID_JoystickReport_Data_t;
 
