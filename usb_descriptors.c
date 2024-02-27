@@ -30,6 +30,8 @@
 #include "tusb.h"
 #include "usb_descriptors.h"
 
+#include "pico/unique_id.h"
+
 /* A combination of interfaces must have a unique product id, since PC will save device driver after the first plug.
  * Same VID/PID with different interface e.g MSC (first), then CDC (later) will possibly cause system error on PC.
  *
@@ -37,8 +39,7 @@
  *   [MSB]         HID | MSC | CDC          [LSB]
  */
 #define _PID_MAP(itf, n)  ( (CFG_TUD_##itf) << (n) )
-#define USB_PID           (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) | \
-                           _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4) )
+#define USB_PID           0x1018	// Entry Model
 
 //--------------------------------------------------------------------+
 // Device Descriptors
@@ -53,7 +54,7 @@ tusb_desc_device_t const desc_device =
                 .bDeviceProtocol    = 0x00,
                 .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
 
-                .idVendor           = 0xCafe,
+                .idVendor           = 0x1ccf,
                 .idProduct          = USB_PID,
                 .bcdDevice          = 0x0100,
 
@@ -78,28 +79,32 @@ uint8_t const *tud_descriptor_device_cb(void) {
 // Single Report (no ID) descriptor
 uint8_t const desc_hid_report[] =
 {
-    0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
-    0x09, 0x04,        // Usage (Joystick)
-    0xA1, 0x01,        // Collection (Application)
-    0x15, 0x00,        //   Logical Minimum (0)
-    0x25, 0x01,        //   Logical Maximum (1)
-    0x35, 0x00,        //   Physical Minimum (0)
-    0x45, 0x01,        //   Physical Maximum (1)
-    0x75, 0x01,        //   Report Size (1)
-    0x95, 0x08,        //   Report Count (8)
-    0x05, 0x09,        //   Usage Page (Button)
-    0x19, 0x01,        //   Usage Minimum (0x01)
-    0x29, 0x08,        //   Usage Maximum (0x08)
-    0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-    0x05, 0x01,        //   Usage Page (Generic Desktop Ctrls)
-    0x26, 0xFF, 0x00,  //   Logical Maximum (255)
-    0x46, 0xFF, 0x00,  //   Physical Maximum (255)
-    0x09, 0x30,        //   Usage (X)
-    0x09, 0x31,        //   Usage (Y)
-    0x75, 0x08,        //   Report Size (8)
-    0x95, 0x02,        //   Report Count (2)
-    0x81, 0x02,        //   Input (Data,Var,Abs,No Wrap,Linear,Preferred State,No Null Position)
-    0xC0,              // End Collection
+	0x05, 0x01,        // Usage Page (Generic Desktop Ctrls)
+	0x09, 0x04,        // Usage (Joystick)
+	0xA1, 0x01,        // Collection (Application)
+	0x09, 0x01,        //   Usage (Pointer)
+	0xA1, 0x00,        //   Collection (Physical)
+	0x05, 0x01,        //     Usage Page (Generic Desktop Ctrls)
+	0x09, 0x30,        //     Usage (X)
+	0x09, 0x31,        //     Usage (Y)
+	0x15, 0x81,        //     Logical Minimum (-127)
+	0x25, 0x7F,        //     Logical Maximum (127)
+	0x75, 0x08,        //     Report Size (8)
+	0x95, 0x02,        //     Report Count (2)
+	0x81, 0x02,        //     Input (Data,Var,Abs)
+	0x05, 0x09,        //     Usage Page (Button)
+	0x19, 0x01,        //     Usage Minimum (0x01)
+	0x29, 0x10,        //     Usage Maximum (0x10)
+	0x15, 0x00,        //     Logical Minimum (0)
+	0x25, 0x01,        //     Logical Maximum (1)
+	0x75, 0x01,        //     Report Size (1)
+	0x95, 0x10,        //     Report Count (16)
+	0x81, 0x02,        //     Input (Data,Var,Abs)
+	0x75, 0x08,        //     Report Size (8)
+	0x95, 0x01,        //     Report Count (1)
+	0x81, 0x03,        //     Input (Const,Var,Abs)
+	0xC0,              //   End Collection
+	0xC0               // End Collection
 };
 
 // Invoked when received GET HID REPORT DESCRIPTOR
@@ -129,8 +134,7 @@ uint8_t const desc_configuration[] =
                 TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, TUSB_DESC_CONFIG_ATT_REMOTE_WAKEUP, 100),
 
                 // Interface number, string index, protocol, report descriptor len, EP In & Out address, size & polling interval
-                TUD_HID_DESCRIPTOR(ITF_NUM_HID, 0, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report), EPNUM_HID,
-                                   8, 1)
+                TUD_HID_DESCRIPTOR(ITF_NUM_HID, 0, HID_ITF_PROTOCOL_NONE, sizeof(desc_hid_report), EPNUM_HID, 8, 1)
         };
 
 // Invoked when received GET CONFIGURATION DESCRIPTOR
@@ -145,16 +149,19 @@ uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
 // String Descriptors
 //--------------------------------------------------------------------+
 
+// unique id
+char uniq_id[17] = "0123456789ABCDEF";
+
 // array of pointer to string descriptors
 char const *string_desc_arr[] =
         {
-                (const char[]) {0x09, 0x04}, // 0: is supported language is English (0x0409)
-                "TinyUSB",                     // 1: Manufacturer
-                "TinyUSB Joystick",            // 2: Product
-                "123456",                      // 3: Serials, should use chip ID
+                (const char[]) {0x09, 0x04},                // 0: is supported language is English (0x0409)
+                "Konami Amusement",                         // 1: Manufacturer
+                "beatmania IIDX controller Entry Model",    // 2: Product
+        	    (const char *)uniq_id,                      // 3: Serials, should use chip ID
         };
 
-static uint16_t _desc_str[32];
+static uint16_t _desc_str[64];
 
 // Invoked when received GET STRING DESCRIPTOR request
 // Application return pointer to descriptor, whose contents must exist long enough for transfer to complete
@@ -162,6 +169,12 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
     (void) langid;
 
     uint8_t chr_count;
+	
+	// Get unique id
+	pico_unique_board_id_t uid;
+	pico_get_unique_board_id(&uid);
+	
+	sprintf(uniq_id, "%X%X%X%X%X%X%X%X", uid.id[0], uid.id[1], uid.id[2], uid.id[3], uid.id[4], uid.id[5], uid.id[6], uid.id[7]);
 
     if (index == 0) {
         memcpy(&_desc_str[1], string_desc_arr[0], 2);
@@ -175,7 +188,7 @@ uint16_t const *tud_descriptor_string_cb(uint8_t index, uint16_t langid) {
 
         // Cap at max char
         chr_count = strlen(str);
-        if (chr_count > 31) chr_count = 31;
+        if (chr_count > 63) chr_count = 63;
 
         for (uint8_t i = 0; i < chr_count; i++) {
             _desc_str[1 + i] = str[i];
