@@ -122,7 +122,7 @@ void hid_task(void) {
     if (tud_hid_ready()) {
         report.xAxis = 128;           // 0=left, 128=center, 255=right
         report.yAxis = 128;           // 0=up, 128=center, 255=down
-        report.buttons = 1 << button; // set bit to press a button
+        report.buttons[0] = 1 << button; // set bit to press a button
         button = (button + 1) & 0x07; // limit button to the range 0..7
 
         tud_hid_report(0x00, &report, sizeof(report));
