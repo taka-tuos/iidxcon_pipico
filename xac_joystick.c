@@ -58,10 +58,30 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 void led_blinking_task(void);
 void hid_task(void);
 
+#define RAINBOW2PLUS
+//#define IIDX_PS2
+
+#ifdef IIDX_PS2
 const int keys[9] = {
 	5,2,8,7,6,9,10, // 1-7
 	4,3             // START,SELECT
 };
+
+const int scr[2] = {
+	11,12
+};
+#endif
+
+#ifdef RAINBOW2PLUS
+const int keys[9] = {
+	26,13,27,14,28,15,29, // 1-7
+	10,11             // START,SELECT
+};
+
+const int scr[2] = {
+	8,9
+};
+#endif
 
 const int map1[9] = {
 	0,0,0,0,0,0,0,
@@ -71,10 +91,6 @@ const int map1[9] = {
 const int map2[9] = {
 	0,1,2,3,4,5,6,
 	0,1
-};
-
-const int scr[2] = {
-	11,12
 };
 
 int scr_mode = 0;
@@ -200,8 +216,8 @@ void hid_task(void) {
 		report.buttons[map1[i]] |= gpio_get(keys[i]) ? 0 : (1 << map2[i]);
 	}
 
-	uint8_t now_a = !gpio_get(12) ? 1 : 0;
-	uint8_t now_b = !gpio_get(11) ? 1 : 0;
+	uint8_t now_a = !gpio_get(scr[1]) ? 1 : 0;
+	uint8_t now_b = !gpio_get(scr[0]) ? 1 : 0;
 	
 	if(prev_a != 255) {
 		if(now_a != prev_a) {
@@ -214,12 +230,12 @@ void hid_task(void) {
 		}
 	}
 	
-	prev_a = !gpio_get(12) ? 1 : 0;
+	prev_a = !gpio_get(scr[1]) ? 1 : 0;
 
-	//if(board_millis() - digi_ctimer > 1) {
+	if(board_millis() - digi_ctimer > 1) {
 		digi_ctimer = board_millis();
 		scr_check();
-	//}
+	}
 
 	if(!scr_mode) {
 		report.xAxis = ((int)ana_sc - 128);
