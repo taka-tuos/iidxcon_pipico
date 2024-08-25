@@ -58,8 +58,8 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 void led_blinking_task(void);
 void hid_task(void);
 
-#define RAINBOW2PLUS
-//#define IIDX_PS2
+//#define RAINBOW2PLUS
+#define IIDX_PS2
 
 #ifdef IIDX_PS2
 const int keys[9] = {
@@ -92,6 +92,18 @@ const int map2[9] = {
 	0,1,2,3,4,5,6,
 	0,1
 };
+
+int debounce_timer[9] = {
+	0,0,0,0,0,0,0,
+	0,0
+};
+
+int debounce_buffer[9] = {
+	0,0,0,0,0,0,0,
+	0,0
+};
+
+#define DEBOUNCE_DURTITION 20
 
 int scr_mode = 0;
 
@@ -173,7 +185,7 @@ void scr_check() {
 				digi_sc = 2;
 			}
 		} else {
-			if(prev_sc - ana_sc  > 127) {
+			if(prev_sc - ana_sc > 127) {
 				digi_sc = 2;
 			} else {
 				digi_sc = 0;
@@ -181,7 +193,7 @@ void scr_check() {
 		}
 		digi_vtimer = 0;
 	} else {
-		if(digi_vtimer >= 20) {
+		if(digi_vtimer >= 150) {
 			digi_sc = 1;
 		} else {
 			digi_vtimer++;
@@ -213,7 +225,14 @@ void hid_task(void) {
 	report.buttons[2] = 0;
 	
 	for(int i = 0; i < 9; i++) {
-		report.buttons[map1[i]] |= gpio_get(keys[i]) ? 0 : (1 << map2[i]);
+		int dat = gpio_get(keys[i]);
+
+		if(dat != debounce_buffer[i] && board_millis() - debounce_timer[i] >= DEBOUNCE_DURTITION) {
+			debounce_buffer[i] = dat;
+			debounce_timer[i] = board_millis();
+		}
+
+		report.buttons[map1[i]] |= debounce_buffer[i] ? 0 : (1 << map2[i]);
 	}
 
 	uint8_t now_a = !gpio_get(scr[1]) ? 1 : 0;
