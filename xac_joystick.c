@@ -59,7 +59,8 @@ void led_blinking_task(void);
 void hid_task(void);
 
 //#define RAINBOW2PLUS
-#define IIDX_PS2
+#define RAINBOW2
+//#define IIDX_PS2
 
 #ifdef IIDX_PS2
 const int keys[9] = {
@@ -74,12 +75,23 @@ const int scr[2] = {
 
 #ifdef RAINBOW2PLUS
 const int keys[9] = {
-	26,13,27,14,28,15,29, // 1-7
-	10,11             // START,SELECT
+	26,13,27,14,28,15,29,
+	10,11
 };
 
 const int scr[2] = {
 	8,9
+};
+#endif
+
+#ifdef RAINBOW2
+const int keys[9] = {
+	13,14,15,26,27,28,29,
+	10,9
+};
+
+const int scr[2] = {
+	11,12
 };
 #endif
 
