@@ -59,8 +59,8 @@ void led_blinking_task(void);
 void hid_task(void);
 
 //#define RAINBOW2PLUS
-#define RAINBOW2
-//#define IIDX_PS2
+//#define RAINBOW2
+#define IIDX_PS2
 
 #ifdef IIDX_PS2
 const int keys[9] = {
@@ -118,6 +118,7 @@ int debounce_buffer[9] = {
 #define DEBOUNCE_DURTITION 20
 
 int scr_mode = 0;
+int scr_delta = 1;
 
 /*------------- MAIN -------------*/
 int main(void) {
@@ -137,8 +138,17 @@ int main(void) {
 	gpio_init(scr[1]);
 	gpio_set_dir(scr[1], GPIO_IN);
 	gpio_pull_up(scr[1]);
+
+	{
+		static uint32_t start_ms = 0;
+
+		while((board_millis() - start_ms) < 100);
+	}
 	
 	scr_mode = !gpio_get(keys[8]) ? 1 : 0;
+	
+	scr_delta = !gpio_get(keys[1]) ? 2 : 1;
+	scr_delta = !gpio_get(keys[3]) ? 4 : scr_delta;
 
 	while (1) {
 		tud_task(); // tinyusb device task
@@ -253,10 +263,10 @@ void hid_task(void) {
 	if(prev_a != 255) {
 		if(now_a != prev_a) {
 			if(now_a == now_b) {
-				ana_sc++;
+				ana_sc += scr_delta;
 			}
 			if(now_a != now_b) {
-				ana_sc--;
+				ana_sc -= scr_delta;
 			}
 		}
 	}
