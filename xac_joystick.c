@@ -58,9 +58,9 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 void led_blinking_task(void);
 void hid_task(void);
 
-//#define RAINBOW2PLUS
+#define RAINBOW2PLUS
 //#define RAINBOW2
-#define IIDX_PS2
+//#define IIDX_PS2
 
 #ifdef IIDX_PS2
 const int keys[9] = {
@@ -263,10 +263,12 @@ void hid_task(void) {
 	if(prev_a != 255) {
 		if(now_a != prev_a) {
 			if(now_a == now_b) {
-				ana_sc += scr_delta;
+				if(!gpio_get(keys[7])) ana_sc++;
+				else ana_sc += scr_delta;
 			}
 			if(now_a != now_b) {
-				ana_sc -= scr_delta;
+				if(!gpio_get(keys[7])) ana_sc--;
+				else ana_sc -= scr_delta;
 			}
 		}
 	}
