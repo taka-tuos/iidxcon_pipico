@@ -65,7 +65,7 @@ void hid_task(void);
 #ifdef IIDX_PS2
 const int keys[9] = {
 	5,2,8,7,6,9,10, // 1-7
-	4,3             // START,SELECT
+	4,3,-1,-1       // START,SELECT,E3,E4
 };
 
 const int scr[2] = {
@@ -74,9 +74,9 @@ const int scr[2] = {
 #endif
 
 #ifdef RAINBOW2PLUS
-const int keys[9] = {
+const int keys[11] = {
 	26,13,27,14,28,15,29,
-	10,11
+	10,11,12,-1
 };
 
 const int scr[2] = {
@@ -85,7 +85,7 @@ const int scr[2] = {
 #endif
 
 #ifdef RAINBOW2
-const int keys[9] = {
+const int keys[11] = {
 	13,14,15,26,27,28,29,
 	10,9
 };
@@ -95,24 +95,24 @@ const int scr[2] = {
 };
 #endif
 
-const int map1[9] = {
+const int map1[11] = {
 	0,0,0,0,0,0,0,
-	1,1
+	1,1,1,1
 };
 
-const int map2[9] = {
+const int map2[11] = {
 	0,1,2,3,4,5,6,
-	0,1
+	0,1,2,3
 };
 
-int debounce_timer[9] = {
+int debounce_timer[11] = {
 	0,0,0,0,0,0,0,
-	0,0
+	0,0,0,0
 };
 
-int debounce_buffer[9] = {
+int debounce_buffer[11] = {
 	0,0,0,0,0,0,0,
-	0,0
+	0,0,0,0
 };
 
 #define DEBOUNCE_DURTITION 20
@@ -125,10 +125,12 @@ int main(void) {
 	board_init();
 	tusb_init();
 	
-	for(int i = 0; i < 9; i++) {
-		gpio_init(keys[i]);
-		gpio_set_dir(keys[i], GPIO_IN);
-		gpio_pull_up(keys[i]);
+	for(int i = 0; i < 11; i++) {
+		if(keys[i] != -1) {
+			gpio_init(keys[i]);
+			gpio_set_dir(keys[i], GPIO_IN);
+			gpio_pull_up(keys[i]);
+		}
 	}
 
 	gpio_init(scr[0]);
@@ -246,15 +248,17 @@ void hid_task(void) {
 	report.buttons[1] = 0;
 	report.buttons[2] = 0;
 	
-	for(int i = 0; i < 9; i++) {
-		int dat = gpio_get(keys[i]);
+	for(int i = 0; i < 11; i++) {
+		if(keys[i] != -1) {
+			int dat = gpio_get(keys[i]);
 
-		if(dat != debounce_buffer[i] && board_millis() - debounce_timer[i] >= DEBOUNCE_DURTITION) {
-			debounce_buffer[i] = dat;
-			debounce_timer[i] = board_millis();
+			if(dat != debounce_buffer[i] && board_millis() - debounce_timer[i] >= DEBOUNCE_DURTITION) {
+				debounce_buffer[i] = dat;
+				debounce_timer[i] = board_millis();
+			}
+
+			report.buttons[map1[i]] |= debounce_buffer[i] ? 0 : (1 << map2[i]);
 		}
-
-		report.buttons[map1[i]] |= debounce_buffer[i] ? 0 : (1 << map2[i]);
 	}
 
 	uint8_t now_a = !gpio_get(scr[1]) ? 1 : 0;
