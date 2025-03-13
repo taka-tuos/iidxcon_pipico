@@ -108,6 +108,18 @@ const int map2[11] = {
 	0,1,2,3
 };
 
+// PSコンの何バイト目か
+const int psx_map1[9] = {
+	1,1,1,1,1,1,0,
+	0,0
+};
+
+// 何bit目か
+const int psx_map2[9] = {
+	7,2,6,3,5,4,7,
+	3,0
+};
+
 // 我らの聖典ps_jpn.txtを崇めよ！
 
 #pragma endregion
@@ -123,6 +135,10 @@ int debounce_timer[11] = {
 int debounce_buffer[11] = {
 	0,0,0,0,0,0,0,
 	0,0,0,0
+};
+
+uint8_t psx_buffer[2] = {
+	0xff, 0xff
 };
 
 // デバウンス時間
@@ -419,6 +435,23 @@ uint8_t psx_transfur(uint8_t send) {
 	gpio_set_dir(psx_dat, false);
 }
 
+// パッド情報を組む
+void psx_build() {
+	psx_buffer[0] = 0xff;
+	psx_buffer[1] = 0xff;
+
+	// ボタン
+	for(int i = 0; i < 9; i++) {
+		if(debounce_buffer[i]) {
+			psx_buffer[psx_map1[i]] &= (1 << psx_map2[i]) ^ 0xff;
+		}
+	}
+
+	// スクラッチ
+	if(digi_sc == 1) psx_buffer[0] &= (1 << 4) ^ 0xff;
+	else if(digi_sc == 2) psx_buffer[0] &= (1 << 6) ^ 0xff;
+}
+
 // Picoには2コア目があってぇ
 // SPIペリフェラルを使う→割り込みはCore0だけしか受け取れないのでUSBとぶつかる
 // PIO→めんどい
@@ -463,6 +496,7 @@ void core1_task() {
 						state = TRANSFER_STATE_SENDING_DATA;
 						data_to_send = 2; // 2 bytes of data.
 						send = 0x5A; // Data coming.
+						psx_build();
 						break;
 					default:
 						state = TRANSFER_STATE_IDLE;
@@ -474,11 +508,11 @@ void core1_task() {
 				switch (2 - data_to_send) {
 					case 0:
 						// 1バイト目
-						send = 0xff;
+						send = psx_buffer[0];
 						break;
 					case 1:
 						// 2バイト目
-						send = 0xff;
+						send = psx_buffer[1];
 						break;
 				}
 				if (--data_to_send == 0) {
