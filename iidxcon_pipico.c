@@ -63,9 +63,9 @@ void core1_task(void);
 #pragma region 定数等
 
 // デバイス指定 どれか一つコメントアウトしてね！
-#define RAINBOW2PLUS
+//#define RAINBOW2PLUS
 //#define RAINBOW2
-//#define IIDX_PS2
+#define IIDX_PS2
 
 #ifdef IIDX_PS2
 // PS2専コン用基板
@@ -77,6 +77,13 @@ const int keys[9] = {
 const int scr[2] = {
 	11,12
 };
+
+const bool psx_enable = true;
+const int psx_att = 14; // CS
+const int psx_sck = 15; // SCK
+const int psx_dat = 26; // MISO
+const int psx_cmd = 27; // MOSI
+const int psx_ack = 28; // ACK
 #endif
 
 #ifdef RAINBOW2PLUS
@@ -90,6 +97,14 @@ const int keys[11] = {
 const int scr[2] = {
 	8,9
 };
+
+const bool psx_enable = false;
+const int psx_att = -1; // CS
+const int psx_sck = -1; // SCK
+const int psx_dat = -1; // MISO
+const int psx_cmd = -1; // MOSI
+const int psx_ack = -1; // ACK
+
 #endif
 
 #ifdef RAINBOW2
@@ -102,6 +117,13 @@ const int keys[11] = {
 const int scr[2] = {
 	11,12
 };
+
+const bool psx_enable = false;
+const int psx_att = -1; // CS
+const int psx_sck = -1; // SCK
+const int psx_dat = -1; // MISO
+const int psx_cmd = -1; // MOSI
+const int psx_ack = -1; // ACK
 #endif
 
 // Reportの何バイト目か
@@ -117,11 +139,6 @@ const int map2[11] = {
 };
 
 // 我らの聖典ps_jpn.txtを崇めよ！
-const int psx_att = -1; // CS
-const int psx_sck = -1; // SCK
-const int psx_dat = -1; // MISO
-const int psx_cmd = -1; // MOSI
-const int psx_ack = -1; // ACK
 
 #pragma endregion
 
@@ -172,6 +189,28 @@ int main(void) {
 	gpio_init(scr[1]);
 	gpio_set_dir(scr[1], GPIO_IN);
 	gpio_pull_up(scr[1]);
+
+	if(psx_enable) {
+		// 入力
+		gpio_init(psx_sck);
+		gpio_set_dir(psx_sck, false);
+		gpio_init(psx_att);
+		gpio_set_dir(psx_att, false);
+		gpio_init(psx_cmd);
+		gpio_set_dir(psx_cmd, false);
+
+		// オープンドレイン
+		gpio_init(psx_dat);
+		gpio_set_dir(psx_dat, false);
+		gpio_put(psx_dat, false);
+
+		gpio_init(psx_ack);
+		gpio_set_dir(psx_ack, false);
+		gpio_put(psx_ack, false);
+
+		// 出力
+		// なんと、ない
+	}
 
 	// ピンの状態を安定させる
 	{
@@ -415,20 +454,8 @@ uint8_t psx_transfur(uint8_t send) {
 // PIO→めんどい
 // 雑ポーリング→かんたん(4MHzぐらいまでなら行けてしまうので)
 void core1_task() {
-	// 入力
-	gpio_set_dir(psx_sck, false);
-	gpio_set_dir(psx_att, false);
-	gpio_set_dir(psx_cmd, false);
-
-	// オープンドレイン
-	gpio_set_dir(psx_dat, false);
-	gpio_put(psx_dat, false);
-
-	gpio_set_dir(psx_ack, false);
-	gpio_put(psx_ack, false);
-
-	// 出力
-	// なんと、ない
+	// PS用インタフェースが有効じゃない場合、死ぬ
+	if(!psx_enable) return;
 
 	uint8_t data_to_send = 0;
 	uint8_t send = 0xff;
