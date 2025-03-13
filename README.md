@@ -1,9 +1,12 @@
-# IIDX(INFINITAS Compatible)/BMS controller using Raspberry Pi Pico and TinyUSB
+# iidxcon_pipico
 
-This based on modifications to the dev_hid_composite example from the
-pico-examples repo.
+## 特徴
+- GPLv3
+  - 人類に打鍵の自由を！
+- エントリーコン偽装
+- PS2対応(WIP)
 
-## How to build
+## ビルド方法
 
 ```bash
 git clone https://github.com/taka-tuos/iidxcon_pipico
