@@ -58,11 +58,15 @@ static uint32_t blink_interval_ms = BLINK_NOT_MOUNTED;
 void led_blinking_task(void);
 void hid_task(void);
 
+#pragma region 定数等
+
+// デバイス指定 どれか一つコメントアウトしてね！
 #define RAINBOW2PLUS
 //#define RAINBOW2
 //#define IIDX_PS2
 
 #ifdef IIDX_PS2
+// PS2専コン用基板
 const int keys[9] = {
 	5,2,8,7,6,9,10, // 1-7
 	4,3,-1,-1       // START,SELECT,E3,E4
@@ -74,6 +78,8 @@ const int scr[2] = {
 #endif
 
 #ifdef RAINBOW2PLUS
+// Rainbow2Plus用基板
+// これだけE3がある
 const int keys[11] = {
 	26,13,27,14,28,15,29,
 	10,11,12,-1
@@ -85,6 +91,7 @@ const int scr[2] = {
 #endif
 
 #ifdef RAINBOW2
+// Rainbow2用基板
 const int keys[11] = {
 	13,14,15,26,27,28,29,
 	10,9
@@ -95,16 +102,23 @@ const int scr[2] = {
 };
 #endif
 
+// Reportの何バイト目か
 const int map1[11] = {
 	0,0,0,0,0,0,0,
 	1,1,1,1
 };
 
+// 何bit目か
 const int map2[11] = {
 	0,1,2,3,4,5,6,
 	0,1,2,3
 };
 
+#pragma endregion
+
+#pragma region グローバル変数
+
+// デバウンス用
 int debounce_timer[11] = {
 	0,0,0,0,0,0,0,
 	0,0,0,0
@@ -115,16 +129,25 @@ int debounce_buffer[11] = {
 	0,0,0,0
 };
 
+// デバウンス時間
 #define DEBOUNCE_DURTITION 20
 
+// 0: アナログ
+// 1: デジタル
 int scr_mode = 0;
+
+// スクラッチ速度
 int scr_delta = 1;
 
+#pragma endregion
+
+#pragma region メイン関数
 /*------------- MAIN -------------*/
 int main(void) {
 	board_init();
 	tusb_init();
 	
+	// 全ピン舐めて設定
 	for(int i = 0; i < 11; i++) {
 		if(keys[i] != -1) {
 			gpio_init(keys[i]);
@@ -141,17 +164,25 @@ int main(void) {
 	gpio_set_dir(scr[1], GPIO_IN);
 	gpio_pull_up(scr[1]);
 
+	// ピンの状態を安定させる
 	{
 		static uint32_t start_ms = 0;
 
 		while((board_millis() - start_ms) < 100);
 	}
 	
+	// SELECT押しながらでLR2モード
 	scr_mode = !gpio_get(keys[8]) ? 1 : 0;
 	
+	// 2鍵押してたら倍スクラッチ
 	scr_delta = !gpio_get(keys[1]) ? 2 : 1;
+
+	// 4鍵押してたら4倍スクラッチ
 	scr_delta = !gpio_get(keys[3]) ? 4 : scr_delta;
 
+	// 6倍は実装予定なし
+
+	// ぶんまわし
 	while (1) {
 		tud_task(); // tinyusb device task
 		led_blinking_task();
@@ -161,9 +192,13 @@ int main(void) {
 	return 0;
 }
 
+#pragma endregion
+
 //--------------------------------------------------------------------+
 // Device callbacks
 //--------------------------------------------------------------------+
+
+#pragma region 謎1
 
 // Invoked when device is mounted
 void tud_mount_cb(void) {
@@ -188,9 +223,12 @@ void tud_resume_cb(void) {
 	blink_interval_ms = BLINK_MOUNTED;
 }
 
+#pragma endregion
+
 //--------------------------------------------------------------------+
 // USB HID
 //--------------------------------------------------------------------+
+#pragma region デジタルスクラッチ
 
 int digi_sc = 1;
 int prev_sc = 0;
@@ -227,11 +265,17 @@ void scr_check() {
 	prev_sc = ana_sc;
 }
 
+#pragma endregion
+
+#pragma region 本処理
+
 void hid_task(void) {
 	const uint32_t interval_ms = 1;
 	static uint32_t start_ms = 0;
 	static HID_JoystickReport_Data_t report;
 
+	// 1ms以上経ってたら…
+	// TODO: これいらんくね？
 	if ((board_millis() - start_ms) < interval_ms) return; // not enough time
 	start_ms = board_millis() + interval_ms;
 	
@@ -242,34 +286,45 @@ void hid_task(void) {
 		tud_remote_wakeup();
 	}
 
+	// Reportを初期化
 	report.xAxis = 0;
 	report.yAxis = 0;
 	report.buttons[0] = 0;
 	report.buttons[1] = 0;
 	report.buttons[2] = 0;
 	
+	// デバウンスしながら埋める
 	for(int i = 0; i < 11; i++) {
 		if(keys[i] != -1) {
+			// よむ
 			int dat = gpio_get(keys[i]);
 
+			// デバウンス時間以上経ってからじゃないと状態変化しない
 			if(dat != debounce_buffer[i] && board_millis() - debounce_timer[i] >= DEBOUNCE_DURTITION) {
 				debounce_buffer[i] = dat;
 				debounce_timer[i] = board_millis();
 			}
 
+			// Reportに突っ込む
 			report.buttons[map1[i]] |= debounce_buffer[i] ? 0 : (1 << map2[i]);
 		}
 	}
 
+	// A相とB相
 	uint8_t now_a = !gpio_get(scr[1]) ? 1 : 0;
 	uint8_t now_b = !gpio_get(scr[0]) ? 1 : 0;
 	
+	// 前回のA相の値が存在してほしい
 	if(prev_a != 255) {
+		// A相が変化した時(両相で見てる)
 		if(now_a != prev_a) {
+			// A相 == B相なら正転
 			if(now_a == now_b) {
+				// スタート押してるときは半速にする(サドプラ)
 				if(!gpio_get(keys[7])) ana_sc++;
 				else ana_sc += scr_delta;
 			}
+			// でなければ…
 			if(now_a != now_b) {
 				if(!gpio_get(keys[7])) ana_sc--;
 				else ana_sc -= scr_delta;
@@ -277,13 +332,16 @@ void hid_task(void) {
 		}
 	}
 	
+	// 前回のA相の値を更新
 	prev_a = !gpio_get(scr[1]) ? 1 : 0;
 
+	// デジタル皿チェック！
 	if(board_millis() - digi_ctimer > 1) {
 		digi_ctimer = board_millis();
 		scr_check();
 	}
 
+	// 皿モードに応じて突っ込む
 	if(!scr_mode) {
 		report.xAxis = ((int)ana_sc - 128);
 	} else {
@@ -296,6 +354,9 @@ void hid_task(void) {
 	}
 }
 
+#pragma endregion
+
+#pragma region 謎2
 
 // Invoked when received GET_REPORT control request
 // Application must fill buffer report's content and return its length.
@@ -336,3 +397,5 @@ void led_blinking_task(void) {
 	board_led_write(led_state);
 	led_state = 1 - led_state; // toggle
 }
+
+#pragma endregion
