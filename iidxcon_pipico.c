@@ -49,11 +49,11 @@ const int scr[2] = {
 };
 
 const bool psx_enable = true;
-const int psx_att = 14; // CS
-const int psx_sck = 15; // SCK
-const int psx_dat = 26; // MISO
+const int psx_att = 15; // CS
+const int psx_sck = 26; // SCK
 const int psx_cmd = 27; // MOSI
-const int psx_ack = 28; // ACK
+const int psx_dat = 28; // MISO
+const int psx_ack = 29; // ACK
 #endif
 
 #ifdef RAINBOW2PLUS
@@ -71,8 +71,8 @@ const int scr[2] = {
 const bool psx_enable = false;
 const int psx_att = -1; // CS
 const int psx_sck = -1; // SCK
-const int psx_dat = -1; // MISO
 const int psx_cmd = -1; // MOSI
+const int psx_dat = -1; // MISO
 const int psx_ack = -1; // ACK
 
 #endif
@@ -91,8 +91,8 @@ const int scr[2] = {
 const bool psx_enable = false;
 const int psx_att = -1; // CS
 const int psx_sck = -1; // SCK
-const int psx_dat = -1; // MISO
 const int psx_cmd = -1; // MOSI
+const int psx_dat = -1; // MISO
 const int psx_ack = -1; // ACK
 #endif
 
