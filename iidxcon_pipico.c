@@ -33,9 +33,9 @@ void core1_task(void);
 #pragma region 定数等
 
 // デバイス指定 どれか一つコメントアウトしてね！
-//#define RAINBOW2PLUS
+#define RAINBOW2PLUS
 //#define RAINBOW2
-#define IIDX_PS2
+//#define IIDX_PS2
 
 #ifdef IIDX_PS2
 // PS2専コン用基板
@@ -81,7 +81,7 @@ const int psx_ack = -1; // ACK
 // Rainbow2用基板
 const int keys[11] = {
 	13,14,15,26,27,28,29,
-	10,9
+	10,9,-1,-1
 };
 
 const int scr[2] = {
