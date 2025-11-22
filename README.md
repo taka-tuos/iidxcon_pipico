@@ -17,3 +17,20 @@ export PICO_SDK_PATH=../../pico-sdk
 cmake ..
 make -j4
 ```
+
+### デバイス指定
+
+`cmake` 実行時に `IIDX_DEVICE` を指定できます。
+
+有効な値:
+- `IIDX_PS2` (デフォルト)
+- `RAINBOW2`
+- `RAINBOW2PLUS`
+
+例:
+
+```bash
+cmake -DIIDX_DEVICE=RAINBOW2 ..
+```
+
+指定がない場合は `IIDX_PS2` が使用され、CMake設定時に警告が表示されます。

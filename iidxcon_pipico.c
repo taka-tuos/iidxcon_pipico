@@ -32,14 +32,17 @@ void core1_task(void);
 
 #pragma region 定数等
 
-// デバイス指定 どれか一つコメントアウトしてね！
-#define RAINBOW2PLUS
-//#define RAINBOW2
-//#define IIDX_PS2
+// デバイス指定はCMakeからマクロ定義で渡される想定
+// (例: -DIIDX_DEVICE=RAINBOW2 をCMake引数に指定)
+// いずれのマクロも指定されていない場合はIIDX_PS2をデフォルトにする
+#if !defined(RAINBOW2PLUS) && !defined(RAINBOW2) && !defined(IIDX_PS2)
+#  define IIDX_PS2
+#  warning "IIDX_DEVICE not specified; defaulting to IIDX_PS2"
+#endif
 
 #ifdef IIDX_PS2
 // PS2専コン用基板
-const int keys[9] = {
+const int keys[11] = {
 	5,2,8,7,6,9,10, // 1-7
 	4,3,-1,-1       // START,SELECT,E3,E4
 };
@@ -311,18 +314,6 @@ void hid_task(void) {
 	static uint32_t start_ms = 0;
 	static HID_JoystickReport_Data_t report;
 
-	// 1ms以上経ってたら…
-	// TODO: これいらんくね？
-	if ((board_millis() - start_ms) < interval_ms) return; // not enough time
-	start_ms = board_millis() + interval_ms;
-	
-	// Remote wakeup
-	if (tud_suspended()) {
-		// Wake up host if we are in suspend mode
-		// and REMOTE_WAKEUP feature is enabled by host
-		tud_remote_wakeup();
-	}
-
 	// Reportを初期化
 	report.xAxis = 0;
 	report.yAxis = 0;
@@ -386,6 +377,17 @@ void hid_task(void) {
 	}
 
 	/*------------- Joystick -------------*/
+	// 1ms以上経ってたら…
+	if ((board_millis() - start_ms) < interval_ms) return; // not enough time
+	start_ms = board_millis() + interval_ms;
+	
+	// Remote wakeup
+	if (tud_suspended()) {
+		// Wake up host if we are in suspend mode
+		// and REMOTE_WAKEUP feature is enabled by host
+		tud_remote_wakeup();
+	}
+
 	if (tud_hid_ready()) {
 		tud_hid_report(0x00, &report, sizeof(report));
 	}
