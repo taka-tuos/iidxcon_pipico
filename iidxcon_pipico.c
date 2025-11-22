@@ -44,7 +44,7 @@ void core1_task(void);
 // PS2専コン用基板
 const int keys[11] = {
 	5,2,8,7,6,9,10, // 1-7
-	4,3,-1,-1       // START,SELECT,E3,E4
+	4,3,255,255     // START,SELECT,E3,E4
 };
 
 const int scr[2] = {
@@ -64,7 +64,7 @@ const int psx_ack = 29; // ACK
 // これだけE3がある
 const int keys[11] = {
 	26,13,27,14,28,15,29,
-	10,11,12,-1
+	10,11,12,255
 };
 
 const int scr[2] = {
@@ -84,7 +84,7 @@ const int psx_ack = -1; // ACK
 // Rainbow2用基板
 const int keys[11] = {
 	13,14,15,26,27,28,29,
-	10,9,-1,-1
+	10,9,255,255
 };
 
 const int scr[2] = {
@@ -164,7 +164,7 @@ int main(void) {
 	
 	// 全ピン舐めて設定
 	for(int i = 0; i < 11; i++) {
-		if(keys[i] != -1) {
+		if(keys[i] != 255) {
 			gpio_init(keys[i]);
 			gpio_set_dir(keys[i], GPIO_IN);
 			gpio_pull_up(keys[i]);
@@ -323,7 +323,7 @@ void hid_task(void) {
 	
 	// デバウンスしながら埋める
 	for(int i = 0; i < 11; i++) {
-		if(keys[i] != -1) {
+		if(keys[i] != 255) {
 			// よむ
 			int dat = gpio_get(keys[i]);
 
@@ -498,7 +498,6 @@ void core1_task() {
 						state = TRANSFER_STATE_SENDING_DATA;
 						data_to_send = 2; // 2 bytes of data.
 						send = 0x5A; // Data coming.
-						psx_build();
 						break;
 					default:
 						state = TRANSFER_STATE_IDLE;
@@ -530,6 +529,7 @@ void core1_task() {
 		if(ack && !gpio_get(psx_att)) {
 			// 5us待って
 			uint64_t start = time_us_64();
+			psx_build();
 			while(time_us_64() - start < 5);
 
 			// LOWにして
