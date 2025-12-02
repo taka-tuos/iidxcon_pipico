@@ -119,7 +119,7 @@ const int psx_map1[9] = {
 
 // 何bit目か
 const int psx_map2[9] = {
-	7,2,6,3,5,4,7,
+	7,2,6,3,5,0,7,
 	3,0
 };
 
@@ -196,6 +196,21 @@ int main(void) {
 		gpio_init(psx_ack);
 		gpio_set_dir(psx_ack, false);
 		gpio_put(psx_ack, false);
+
+		gpio_pull_up(psx_att);
+		gpio_pull_up(psx_sck);
+		gpio_pull_up(psx_cmd);
+		gpio_pull_up(psx_ack);
+		gpio_pull_up(psx_ack);
+
+		gpio_set_drive_strength(psx_dat, GPIO_DRIVE_STRENGTH_12MA);
+		gpio_set_drive_strength(psx_ack, GPIO_DRIVE_STRENGTH_12MA);
+
+		gpio_set_input_enabled(psx_dat, true);
+		gpio_set_input_enabled(psx_ack, true);
+
+		gpio_set_slew_rate(psx_dat, GPIO_SLEW_RATE_FAST);
+		gpio_set_slew_rate(psx_ack, GPIO_SLEW_RATE_FAST);
 
 		// 出力
 		// なんと、ない
@@ -408,9 +423,9 @@ enum transfer_state {
 // 0: 立下り
 void psx_waitedge(int edge) {
 	if(edge == 0) {
-		while(gpio_get(psx_sck) == 1);
+		while(gpio_get(psx_sck) == 1) if(gpio_get(psx_att)) break;
 	} else if(edge == 1) {
-		while(gpio_get(psx_sck) == 0);
+		while(gpio_get(psx_sck) == 0) if(gpio_get(psx_att)) break;
 	}
 }
 
@@ -420,6 +435,8 @@ uint8_t psx_transfur(uint8_t send) {
 	uint8_t dat = 0;
 
 	for(int i = 0; i < 8; i++) {
+		if(gpio_get(psx_att)) break;
+
 		// 最初に立下りが来る
 		psx_waitedge(0);
 
@@ -435,6 +452,8 @@ uint8_t psx_transfur(uint8_t send) {
 
 	// Hi-Zに戻す
 	gpio_set_dir(psx_dat, false);
+
+	return dat;
 }
 
 // パッド情報を組む
@@ -444,13 +463,13 @@ void psx_build() {
 
 	// ボタン
 	for(int i = 0; i < 9; i++) {
-		if(debounce_buffer[i]) {
+		if(!debounce_buffer[i]) {
 			psx_buffer[psx_map1[i]] &= (1 << psx_map2[i]) ^ 0xff;
 		}
 	}
 
 	// スクラッチ
-	if(digi_sc == 1) psx_buffer[0] &= (1 << 4) ^ 0xff;
+	if(digi_sc == 0) psx_buffer[0] &= (1 << 4) ^ 0xff;
 	else if(digi_sc == 2) psx_buffer[0] &= (1 << 6) ^ 0xff;
 }
 
@@ -476,6 +495,10 @@ void core1_task() {
 		
 		uint8_t data = psx_transfur(send);
 		uint8_t command = 0;
+
+		send = 0xff;
+
+		if(gpio_get(psx_att) == 1) continue;
 
 		// コピペ元: http://benryves.com/bin/playstation-arcade-stick.zip
 		switch(state) {
@@ -527,20 +550,21 @@ void core1_task() {
 		}
 
 		if(ack && !gpio_get(psx_att)) {
-			// 5us待って
+			/*// 5us待って
 			uint64_t start = time_us_64();
-			psx_build();
-			while(time_us_64() - start < 5);
+			while(time_us_64() - start < 10);*/
 
 			// LOWにして
-			gpio_set_dir(psx_att, true);
+			gpio_set_dir(psx_ack, true);
+			gpio_put(psx_ack, false);
 
 			// 2us待って
-			start = time_us_64();
-			while(time_us_64() - start < 2);
+			uint64_t start2 = time_us_64();
+			psx_build();
+			while(time_us_64() - start2 < 5);
 
 			// HIGHにする
-			gpio_set_dir(psx_att, false);
+			gpio_set_dir(psx_ack, false);
 
 			// マイクロ秒は32bitだと72分でラップアラウンドするので狂う
 			// 64bitなら30万年
