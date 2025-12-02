@@ -427,7 +427,7 @@ uint8_t psx_transfur(uint8_t send) {
 		gpio_set_dir(psx_dat, !(send & (1 << i)));
 
 		// 立ち上がり待ち
-		psx_waitedge(0);
+		psx_waitedge(1);
 
 		// 読んで入れる
 		dat |= ((gpio_get(psx_cmd) ? 1 : 0) << i);
