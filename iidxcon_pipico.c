@@ -166,6 +166,7 @@ int main(void) {
 	for(int i = 0; i < 11; i++) {
 		if(keys[i] != 255) {
 			gpio_init(keys[i]);
+			gpio_set_input_enabled(keys[i], true);
 			gpio_set_dir(keys[i], GPIO_IN);
 			gpio_pull_up(keys[i]);
 		}
@@ -197,18 +198,25 @@ int main(void) {
 		gpio_set_dir(psx_ack, false);
 		gpio_put(psx_ack, false);
 
+		// とりあえずぜんぶプルアップしとけ理論
 		gpio_pull_up(psx_att);
 		gpio_pull_up(psx_sck);
 		gpio_pull_up(psx_cmd);
-		gpio_pull_up(psx_ack);
+		gpio_pull_up(psx_dat);
 		gpio_pull_up(psx_ack);
 
+		// いっぱい吸わないといけないので
 		gpio_set_drive_strength(psx_dat, GPIO_DRIVE_STRENGTH_12MA);
 		gpio_set_drive_strength(psx_ack, GPIO_DRIVE_STRENGTH_12MA);
 
+		// gpioによってはinputがONになってないこともある
+		gpio_set_input_enabled(psx_att, true);
+		gpio_set_input_enabled(psx_sck, true);
+		gpio_set_input_enabled(psx_cmd, true);
 		gpio_set_input_enabled(psx_dat, true);
 		gpio_set_input_enabled(psx_ack, true);
 
+		// はやく吸うため
 		gpio_set_slew_rate(psx_dat, GPIO_SLEW_RATE_FAST);
 		gpio_set_slew_rate(psx_ack, GPIO_SLEW_RATE_FAST);
 
@@ -376,7 +384,7 @@ void hid_task(void) {
 	}
 	
 	// 前回のA相の値を更新
-	prev_a = !gpio_get(scr[1]) ? 1 : 0;
+	prev_a = now_a;
 
 	// デジタル皿チェック！
 	if(board_millis() - digi_ctimer > 1) {
