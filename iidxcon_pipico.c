@@ -300,6 +300,7 @@ int digi_vtimer = 0;
 
 uint8_t ana_sc = 0;
 uint8_t prev_a = 255;
+uint8_t prev_b = 255;
 
 void scr_check() {
 	if(ana_sc != prev_sc) {
@@ -382,9 +383,28 @@ void hid_task(void) {
 			}
 		}
 	}
+
+	// 前回のB相の値が存在してほしい
+	if(prev_b != 255) {
+		// B相が変化した時(両相で見てる)
+		if(now_b != prev_b) {
+			// A相 == B相なら逆転
+			if(now_a == now_b) {
+				// スタート押してるときは半速にする(サドプラ)
+				if(!gpio_get(keys[7])) ana_sc--;
+				else ana_sc -= scr_delta;
+			}
+			// でなければ…
+			if(now_a != now_b) {
+				if(!gpio_get(keys[7])) ana_sc++;
+				else ana_sc += scr_delta;
+			}
+		}
+	}
 	
-	// 前回のA相の値を更新
+	// 前回のA/B相の値を更新
 	prev_a = now_a;
+	prev_b = now_b;
 
 	// デジタル皿チェック！
 	if(board_millis() - digi_ctimer > 1) {
