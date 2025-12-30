@@ -152,7 +152,7 @@ uint8_t psx_buffer[2] = {
 int scr_mode = 0;
 
 // スクラッチ速度
-int scr_delta = 1;
+int scr_4x = 0;
 
 #pragma endregion
 
@@ -234,13 +234,10 @@ int main(void) {
 	// SELECT押しながらでLR2モード
 	scr_mode = !gpio_get(keys[8]) ? 1 : 0;
 	
-	// 2鍵押してたら倍スクラッチ
-	scr_delta = !gpio_get(keys[1]) ? 2 : 1;
+	// 2鍵押してたら4逓倍モード
+	scr_4x = !gpio_get(keys[1]) ? 1 : 0;
 
-	// 4鍵押してたら4倍スクラッチ
-	scr_delta = !gpio_get(keys[3]) ? 4 : scr_delta;
-
-	// 6倍は実装予定なし
+	// 6倍は実装予定なし、4倍は廃止
 
 	// PS用タスクを起動
 	multicore_launch_core1(core1_task);
@@ -372,32 +369,26 @@ void hid_task(void) {
 		if(now_a != prev_a) {
 			// A相 == B相なら正転
 			if(now_a == now_b) {
-				// スタート押してるときは半速にする(サドプラ)
-				if(!gpio_get(keys[7])) ana_sc++;
-				else ana_sc += scr_delta;
+				ana_sc++;
 			}
 			// でなければ…
 			if(now_a != now_b) {
-				if(!gpio_get(keys[7])) ana_sc--;
-				else ana_sc -= scr_delta;
+				ana_sc--;
 			}
 		}
 	}
 
 	// 前回のB相の値が存在してほしい
-	if(prev_b != 255) {
+	if(prev_b != 255 && scr_4x) {
 		// B相が変化した時(両相で見てる)
 		if(now_b != prev_b) {
 			// A相 == B相なら逆転
 			if(now_a == now_b) {
-				// スタート押してるときは半速にする(サドプラ)
-				if(!gpio_get(keys[7])) ana_sc--;
-				else ana_sc -= scr_delta;
+				ana_sc--;
 			}
 			// でなければ…
 			if(now_a != now_b) {
-				if(!gpio_get(keys[7])) ana_sc++;
-				else ana_sc += scr_delta;
+				ana_sc++;
 			}
 		}
 	}
