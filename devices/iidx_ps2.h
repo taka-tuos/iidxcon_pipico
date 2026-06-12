@@ -1,5 +1,5 @@
-#ifndef _IIDXCON_PS2_H_
-#define _IIDXCON_PS2_H_
+#ifndef _IIDXCON_IIDX_PS2_H_
+#define _IIDXCON_IIDX_PS2_H_
 
 // PS2 専コン用基板
 const int keys[11] = {
@@ -18,4 +18,4 @@ const int psx_cmd = 27; // MOSI
 const int psx_dat = 28; // MISO
 const int psx_ack = 29; // ACK
 
-#endif // _IIDXCON_PS2_H_
+#endif // _IIDXCON_IIDX_PS2_H_
