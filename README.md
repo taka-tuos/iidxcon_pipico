@@ -18,14 +18,15 @@ cmake ..
 make -j4
 ```
 
-### デバイス指定
+### ボード指定
 
-`cmake` 実行時に `IIDX_DEVICE` を指定できます。
+`cmake` 実行時に `IIDX_DEVICE` を指定できます。書きこむ基板に合わせて選択してください。
 
 有効な値:
-- `IIDX_PS2` (デフォルト)
-- `RAINBOW2`
-- `RAINBOW2PLUS`
+- `IIDX_PS2` (PS2専コン、デフォルト)
+- `RAINBOW2PLUS` (Rainbow Controller 2 Plus)
+- `RAINBOW2` (Rainbow Controller 2)
+- `DAO_FPS` (DAO FPS)
 
 例:
 

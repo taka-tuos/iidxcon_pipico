@@ -1,14 +1,16 @@
-#ifndef _IIDXCON_DAO_FPS_H_
-#define _IIDXCON_DAO_FPS_H_
+#ifndef _DEVICES_DAO_FPS_H_
+#define _DEVICES_DAO_FPS_H_
 
-// DAO-FPS 用基板（全無効設定）
-const int keys[11] = {
-	255,255,255,255,255,255,255,
-	255,255,255,255
+#include "../devices_common.h"
+
+// DAO FPS 用基板
+const int keys[KEY_COUNT] = {
+	BTN_DISABLED, BTN_DISABLED, BTN_DISABLED, BTN_DISABLED, BTN_DISABLED, BTN_DISABLED, BTN_DISABLED,
+	BTN_DISABLED, BTN_DISABLED, BTN_DISABLED, BTN_DISABLED
 };
 
-const int scr[2] = {
-	255,255
+const int scr[SCR_COUNT] = {
+	BTN_DISABLED, BTN_DISABLED
 };
 
 const bool psx_enable = false;
@@ -18,4 +20,4 @@ const int psx_cmd = -1; // MOSI
 const int psx_dat = -1; // MISO
 const int psx_ack = -1; // ACK
 
-#endif // _IIDXCON_DAO_FPS_H_
+#endif // _DEVICES_DAO_FPS_H_

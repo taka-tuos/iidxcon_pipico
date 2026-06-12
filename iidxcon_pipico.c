@@ -5,7 +5,8 @@
 #include "bsp/board.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
-#include "iidxcon_devices.h"
+#include "devices.h"
+#include "devices_common.h"
 
 #include "hardware/gpio.h"
 #include "pico/multicore.h"
@@ -77,7 +78,7 @@ uint8_t psx_buffer[2] = {
 };
 
 // デバウンス時間
-#define DEBOUNCE_DURTITION 20
+#define DEBOUNCE_DURATION 20
 
 // 0: アナログ
 // 1: デジタル
@@ -96,7 +97,7 @@ int main(void) {
 	
 	// 全ピン舐めて設定
 	for(int i = 0; i < 11; i++) {
-		if(keys[i] != 255) {
+		if(keys[i] != BTN_DISABLED) {
 			gpio_init(keys[i]);
 			gpio_set_input_enabled(keys[i], true);
 			gpio_set_dir(keys[i], GPIO_IN);
@@ -274,12 +275,12 @@ void hid_task(void) {
 	
 	// デバウンスしながら埋める
 	for(int i = 0; i < 11; i++) {
-		if(keys[i] != 255) {
+		if(keys[i] != BTN_DISABLED) {
 			// よむ
 			int dat = gpio_get(keys[i]);
 
 			// デバウンス時間以上経ってからじゃないと状態変化しない
-			if(dat != debounce_buffer[i] && board_millis() - debounce_timer[i] >= DEBOUNCE_DURTITION) {
+			if(dat != debounce_buffer[i] && board_millis() - debounce_timer[i] >= DEBOUNCE_DURATION) {
 				debounce_buffer[i] = dat;
 				debounce_timer[i] = board_millis();
 			}
@@ -372,9 +373,15 @@ enum transfer_state {
 // 0: 立下り
 void psx_waitedge(int edge) {
 	if(edge == 0) {
-		while(gpio_get(psx_sck) == 1) if(gpio_get(psx_att)) break;
+		while(gpio_get(psx_sck) == 1) {
+			__asm__ volatile("nop");
+			if(gpio_get(psx_att)) break;
+		}
 	} else if(edge == 1) {
-		while(gpio_get(psx_sck) == 0) if(gpio_get(psx_att)) break;
+		while(gpio_get(psx_sck) == 0) {
+			__asm__ volatile("nop");
+			if(gpio_get(psx_att)) break;
+		}
 	}
 }
 
