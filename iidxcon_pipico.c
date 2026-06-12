@@ -5,6 +5,7 @@
 #include "bsp/board.h"
 #include "tusb.h"
 #include "usb_descriptors.h"
+#include "iidxcon_devices.h"
 
 #include "hardware/gpio.h"
 #include "pico/multicore.h"
@@ -30,74 +31,7 @@ void led_blinking_task(void);
 void hid_task(void);
 void core1_task(void);
 
-#pragma region 定数等
-
-// デバイス指定はCMakeからマクロ定義で渡される想定
-// (例: -DIIDX_DEVICE=RAINBOW2 をCMake引数に指定)
-// いずれのマクロも指定されていない場合はIIDX_PS2をデフォルトにする
-#if !defined(RAINBOW2PLUS) && !defined(RAINBOW2) && !defined(IIDX_PS2)
-#  define IIDX_PS2
-#  warning "IIDX_DEVICE not specified; defaulting to IIDX_PS2"
-#endif
-
-#ifdef IIDX_PS2
-// PS2専コン用基板
-const int keys[11] = {
-	5,2,8,7,6,9,10, // 1-7
-	4,3,255,255     // START,SELECT,E3,E4
-};
-
-const int scr[2] = {
-	11,12
-};
-
-const bool psx_enable = true;
-const int psx_att = 15; // CS
-const int psx_sck = 26; // SCK
-const int psx_cmd = 27; // MOSI
-const int psx_dat = 28; // MISO
-const int psx_ack = 29; // ACK
-#endif
-
-#ifdef RAINBOW2PLUS
-// Rainbow2Plus用基板
-// これだけE3がある
-const int keys[11] = {
-	26,13,27,14,28,15,29,
-	10,11,12,255
-};
-
-const int scr[2] = {
-	8,9
-};
-
-const bool psx_enable = false;
-const int psx_att = -1; // CS
-const int psx_sck = -1; // SCK
-const int psx_cmd = -1; // MOSI
-const int psx_dat = -1; // MISO
-const int psx_ack = -1; // ACK
-
-#endif
-
-#ifdef RAINBOW2
-// Rainbow2用基板
-const int keys[11] = {
-	13,14,15,26,27,28,29,
-	10,9,255,255
-};
-
-const int scr[2] = {
-	11,12
-};
-
-const bool psx_enable = false;
-const int psx_att = -1; // CS
-const int psx_sck = -1; // SCK
-const int psx_cmd = -1; // MOSI
-const int psx_dat = -1; // MISO
-const int psx_ack = -1; // ACK
-#endif
+#pragma region map定義
 
 // Reportの何バイト目か
 const int map1[11] = {
@@ -122,8 +56,6 @@ const int psx_map2[9] = {
 	7,2,6,3,5,0,7,
 	3,0
 };
-
-// 我らの聖典ps_jpn.txtを崇めよ！
 
 #pragma endregion
 
@@ -236,8 +168,6 @@ int main(void) {
 	
 	// 2鍵押してたら4逓倍モード
 	scr_4x = !gpio_get(keys[1]) ? 1 : 0;
-
-	// 6倍は実装予定なし、4倍は廃止
 
 	// PS用タスクを起動
 	multicore_launch_core1(core1_task);
